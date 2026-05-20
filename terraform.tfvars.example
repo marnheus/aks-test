@@ -1,0 +1,41 @@
+# Copy this file to terraform.tfvars and replace placeholder values with real ones.
+# Do not commit terraform.tfvars with secrets or environment-specific values.
+
+# Azure region for all resources.
+# Optional: defaults to "canadacentral".
+location = "canadacentral"
+
+# Name of the Azure resource group to create or use for this deployment.
+# Required.
+resource_group_name = "rg-aks-demo-canadacentral"
+
+# Tags applied to all resources.
+# Optional: defaults shown below.
+tags = {
+  environment = "demo"
+  managed_by  = "terraform"
+}
+
+# Address space for the virtual network.
+# Optional: defaults to the value below.
+vnet_address_space = ["10.0.0.0/16"]
+
+# Admin username for the jumpbox or VM resources.
+# Optional: defaults to "azureadmin".
+admin_username = "azureadmin"
+
+# Admin password for the Windows jumpbox VM.
+# Required and sensitive. Use a strong password that meets Azure complexity requirements.
+admin_password = "ReplaceWithAStrongPassword123!"
+
+# GitHub personal access token used to register the self-hosted runner.
+# Required and sensitive. Use a token with the permissions needed for runner registration.
+github_runner_token = "replace-with-github-runner-token"
+
+# GitHub repository for runner registration in owner/repo format.
+# Required.
+github_repository = "your-org/your-repo"
+
+# Kubernetes version for the AKS cluster.
+# Optional: defaults to "1.30".
+kubernetes_version = "1.30"

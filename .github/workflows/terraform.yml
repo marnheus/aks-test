@@ -1,0 +1,198 @@
+name: Terraform CI/CD
+
+on:
+  pull_request:
+    branches:
+      - main
+  push:
+    branches:
+      - main
+
+permissions:
+  id-token: write
+  contents: read
+  pull-requests: write
+
+concurrency:
+  group: terraform-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+env:
+  ARM_CLIENT_ID: ${{ secrets.ARM_CLIENT_ID }}
+  ARM_SUBSCRIPTION_ID: ${{ secrets.ARM_SUBSCRIPTION_ID }}
+  ARM_TENANT_ID: ${{ secrets.ARM_TENANT_ID }}
+  ARM_USE_OIDC: true
+  TF_INPUT: false
+  TF_IN_AUTOMATION: true
+
+jobs:
+  plan:
+    name: Terraform plan
+    runs-on: ubuntu-latest # Switch to self-hosted later if private network access is required.
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Azure login
+        uses: azure/login@v2
+        with:
+          client-id: ${{ env.ARM_CLIENT_ID }}
+          tenant-id: ${{ env.ARM_TENANT_ID }}
+          subscription-id: ${{ env.ARM_SUBSCRIPTION_ID }}
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_wrapper: false
+
+      - name: Switch backend to Azure Storage for CI/CD
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          path = Path('terraform.tf')
+          content = path.read_text(encoding='utf-8')
+          updated = content.replace('backend "local" {}', 'backend "azurerm" {}', 1)
+
+          if content == updated:
+              raise SystemExit('Expected local backend declaration was not found in terraform.tf')
+
+          path.write_text(updated, encoding='utf-8')
+          PY
+
+      - name: Terraform init
+        run: |
+          terraform init -input=false -no-color -reconfigure \
+            -backend-config="resource_group_name=${{ secrets.TFSTATE_RESOURCE_GROUP }}" \
+            -backend-config="storage_account_name=${{ secrets.TFSTATE_STORAGE_ACCOUNT }}" \
+            -backend-config="container_name=${{ secrets.TFSTATE_CONTAINER }}" \
+            -backend-config="key=${{ secrets.TFSTATE_KEY }}" \
+            -backend-config="use_oidc=true" \
+            -backend-config="use_azuread_auth=true"
+
+      - name: Terraform validate
+        run: terraform validate -no-color
+
+      - name: Terraform plan
+        run: terraform plan -no-color -out=tfplan
+
+      - name: Render Terraform plan output
+        run: terraform show -no-color tfplan > tfplan.txt
+
+      - name: Upload Terraform plan artifact
+        if: github.event_name == 'push'
+        uses: actions/upload-artifact@v4
+        with:
+          name: tfplan
+          path: tfplan
+          retention-days: 1
+
+      - name: Comment Terraform plan on pull request
+        if: github.event_name == 'pull_request'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            const marker = '<!-- terraform-plan -->';
+            const rawPlan = fs.readFileSync('tfplan.txt', 'utf8');
+            const maxLength = 60000;
+            const truncatedPlan = rawPlan.length > maxLength
+              ? `${rawPlan.slice(0, maxLength)}\n... plan truncated ...`
+              : rawPlan;
+            const body = [
+              marker,
+              '## Terraform plan',
+              `Commit: \`${context.sha}\``,
+              '',
+              '<details><summary>Show plan</summary>',
+              '',
+              '```terraform',
+              truncatedPlan,
+              '```',
+              '',
+              '</details>',
+            ].join('\n');
+
+            const { owner, repo } = context.repo;
+            const issue_number = context.issue.number;
+            const comments = await github.paginate(github.rest.issues.listComments, {
+              owner,
+              repo,
+              issue_number,
+              per_page: 100,
+            });
+
+            const existing = comments.find((comment) =>
+              comment.user.type === 'Bot' && comment.body.includes(marker)
+            );
+
+            if (existing) {
+              await github.rest.issues.updateComment({
+                owner,
+                repo,
+                comment_id: existing.id,
+                body,
+              });
+            } else {
+              await github.rest.issues.createComment({
+                owner,
+                repo,
+                issue_number,
+                body,
+              });
+            }
+
+  apply:
+    name: Terraform apply
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    needs:
+      - plan
+    runs-on: ubuntu-latest # Switch to self-hosted later if private network access is required.
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Azure login
+        uses: azure/login@v2
+        with:
+          client-id: ${{ env.ARM_CLIENT_ID }}
+          tenant-id: ${{ env.ARM_TENANT_ID }}
+          subscription-id: ${{ env.ARM_SUBSCRIPTION_ID }}
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_wrapper: false
+
+      - name: Switch backend to Azure Storage for CI/CD
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          path = Path('terraform.tf')
+          content = path.read_text(encoding='utf-8')
+          updated = content.replace('backend "local" {}', 'backend "azurerm" {}', 1)
+
+          if content == updated:
+              raise SystemExit('Expected local backend declaration was not found in terraform.tf')
+
+          path.write_text(updated, encoding='utf-8')
+          PY
+
+      - name: Terraform init
+        run: |
+          terraform init -input=false -no-color -reconfigure \
+            -backend-config="resource_group_name=${{ secrets.TFSTATE_RESOURCE_GROUP }}" \
+            -backend-config="storage_account_name=${{ secrets.TFSTATE_STORAGE_ACCOUNT }}" \
+            -backend-config="container_name=${{ secrets.TFSTATE_CONTAINER }}" \
+            -backend-config="key=${{ secrets.TFSTATE_KEY }}" \
+            -backend-config="use_oidc=true" \
+            -backend-config="use_azuread_auth=true"
+
+      - name: Download Terraform plan artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: tfplan
+
+      - name: Terraform apply
+        run: terraform apply -input=false -no-color tfplan
