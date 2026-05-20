@@ -17,3 +17,56 @@ resource "random_string" "suffix" {
   special = false
   upper   = false
 }
+
+# Auto-generated VM admin credentials
+resource "random_pet" "jumpbox_admin_username" {
+  length    = 2
+  separator = ""
+}
+
+resource "random_pet" "runner_admin_username" {
+  length    = 2
+  separator = ""
+}
+
+resource "random_password" "jumpbox_windows_password" {
+  length           = 24
+  special          = true
+  override_special = "!@#$%^&*"
+  min_lower        = 2
+  min_upper        = 2
+  min_numeric      = 2
+  min_special      = 2
+}
+
+# Grant the deployer Key Vault Secrets Officer role to write secrets
+resource "azurerm_role_assignment" "deployer_kv_admin" {
+  scope                = module.keyvault.vault_id
+  role_definition_name = "Key Vault Secrets Officer"
+  principal_id         = data.azurerm_client_config.current.object_id
+}
+
+# Store VM credentials in Key Vault
+resource "azurerm_key_vault_secret" "jumpbox_admin_username" {
+  name         = "jumpbox-admin-username"
+  value        = random_pet.jumpbox_admin_username.id
+  key_vault_id = module.keyvault.vault_id
+
+  depends_on = [azurerm_role_assignment.deployer_kv_admin]
+}
+
+resource "azurerm_key_vault_secret" "jumpbox_admin_password" {
+  name         = "jumpbox-admin-password"
+  value        = random_password.jumpbox_windows_password.result
+  key_vault_id = module.keyvault.vault_id
+
+  depends_on = [azurerm_role_assignment.deployer_kv_admin]
+}
+
+resource "azurerm_key_vault_secret" "runner_admin_username" {
+  name         = "runner-admin-username"
+  value        = random_pet.runner_admin_username.id
+  key_vault_id = module.keyvault.vault_id
+
+  depends_on = [azurerm_role_assignment.deployer_kv_admin]
+}

@@ -24,18 +24,6 @@ variable "vnet_address_space" {
   default     = ["10.0.0.0/16"]
 }
 
-variable "admin_username" {
-  type        = string
-  description = "Admin username for VMs."
-  default     = "azureadmin"
-}
-
-variable "admin_password" {
-  type        = string
-  description = "Admin password for Windows jumpbox VM."
-  sensitive   = true
-}
-
 variable "github_runner_token" {
   type        = string
   description = "GitHub personal access token for runner registration."

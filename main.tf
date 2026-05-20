@@ -122,8 +122,8 @@ module "jumpbox" {
   location            = azurerm_resource_group.main.location
   subnet_id           = module.network.subnet_ids["jumpbox"]
   name_prefix         = "${local.name_prefix}-${local.resource_suffix}"
-  admin_username      = var.admin_username
-  admin_password      = var.admin_password
+  admin_username      = random_pet.jumpbox_admin_username.id
+  admin_password      = random_password.jumpbox_windows_password.result
   tags                = var.tags
 }
 
@@ -134,7 +134,7 @@ module "github_runner" {
   location            = azurerm_resource_group.main.location
   subnet_id           = module.network.subnet_ids["runner"]
   vm_name             = "${local.name_prefix}-runner-${local.resource_suffix}"
-  admin_username      = var.admin_username
+  admin_username      = random_pet.runner_admin_username.id
   github_runner_token = var.github_runner_token
   github_repository   = var.github_repository
   tags                = var.tags

@@ -20,14 +20,6 @@ tags = {
 # Optional: defaults to the value below.
 vnet_address_space = ["10.0.0.0/16"]
 
-# Admin username for the jumpbox or VM resources.
-# Optional: defaults to "azureadmin".
-admin_username = "azureadmin"
-
-# Admin password for the Windows jumpbox VM.
-# Required and sensitive. Use a strong password that meets Azure complexity requirements.
-admin_password = "ReplaceWithAStrongPassword123!"
-
 # GitHub personal access token used to register the self-hosted runner.
 # Required and sensitive. Use a token with the permissions needed for runner registration.
 github_runner_token = "replace-with-github-runner-token"
