@@ -18,8 +18,9 @@ terraform {
   # Uncomment below and remove local backend for CI/CD with remote state
   # backend "azurerm" {
   #   resource_group_name  = "rg-terraform-state"
-  #   storage_account_name = "stterraformstate"
+  #   storage_account_name = "staksdemostate2026"
   #   container_name       = "tfstate"
   #   key                  = "aks-private.tfstate"
+  #   use_azuread_auth     = true
   # }
 }

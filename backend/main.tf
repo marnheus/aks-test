@@ -9,6 +9,7 @@ terraform {
 
 provider "azurerm" {
   features {}
+  storage_use_azuread = true
 }
 
 resource "azurerm_resource_group" "tfstate" {
@@ -24,7 +25,18 @@ resource "azurerm_storage_account" "tfstate" {
   account_tier                    = "Standard"
   account_replication_type        = "LRS"
   allow_nested_items_to_be_public = false
+  shared_access_key_enabled       = false
+  default_to_oauth_authentication = true
   tags                            = var.tags
+}
+
+# Grant the deployer Storage Blob Data Contributor on the state container
+data "azurerm_client_config" "current" {}
+
+resource "azurerm_role_assignment" "tfstate_blob_contributor" {
+  scope                = azurerm_storage_account.tfstate.id
+  role_definition_name = "Storage Blob Data Contributor"
+  principal_id         = data.azurerm_client_config.current.object_id
 }
 
 resource "azurerm_storage_container" "tfstate" {
