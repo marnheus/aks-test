@@ -12,6 +12,10 @@ Terraform template for a private AKS cluster deployed inside a VNet using [Azure
 - Jumpbox VM for cluster administration
 - Private GitHub Actions self-hosted runner
 - Azure Container Registry (ACR) with VNet integration
+- Azure Key Vault for secrets/certificate management
+- Log Analytics Workspace + Azure Monitor (container insights)
+- NAT Gateway for controlled egress
+- Storage Account for persistent volumes
 
 ## Commands
 

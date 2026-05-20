@@ -12,6 +12,10 @@ This template deploys the following resources inside a private VNet:
 - **Jumpbox VM** — For administrative access to the private cluster
 - **Private GitHub Actions Runner** — Self-hosted runner inside the VNet for CI/CD pipelines
 - **Azure Container Registry (ACR)** — Private image registry with VNet integration
+- **Azure Key Vault** — Secrets and certificate management for AKS workloads
+- **Log Analytics Workspace / Azure Monitor** — Observability and container insights
+- **NAT Gateway** — Controlled egress traffic from the private VNet
+- **Storage Account** — Persistent volumes for AKS pods
 
 ## Prerequisites
 
