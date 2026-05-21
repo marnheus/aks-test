@@ -12,7 +12,7 @@ terraform {
 data "azurerm_client_config" "current" {}
 
 locals {
-  resource_group_id = "/subscriptions/${data.azurerm_client_config.current.subscription_id}/resourceGroups/${var.resource_group_name}"
+  resource_group_id = var.resource_group_id
 }
 
 resource "azurerm_user_assigned_identity" "control_plane" {
@@ -96,6 +96,8 @@ module "aks" {
     load_balancer_sku = "standard"
     network_plugin    = "azure"
     network_policy    = "azure"
+    service_cidr      = "172.16.0.0/16"
+    dns_service_ip    = "172.16.0.10"
   }
 
   oidc_issuer_profile = {

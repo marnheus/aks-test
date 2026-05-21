@@ -16,7 +16,14 @@ module "storage_account" {
   account_tier             = "Standard"
   account_replication_type = "LRS"
 
-  public_network_access_enabled = false
+  shared_access_key_enabled       = false
+  public_network_access_enabled   = true
+  default_to_oauth_authentication = true
+
+  network_rules = {
+    default_action = "Allow"
+    bypass         = ["AzureServices"]
+  }
 
   containers = {
     persistent_volumes = {

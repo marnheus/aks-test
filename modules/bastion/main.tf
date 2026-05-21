@@ -4,7 +4,7 @@ module "bastion" {
 
   name              = var.bastion_name
   location          = var.location
-  parent_id         = data.azurerm_resource_group.this.id
+  parent_id         = var.resource_group_id
   sku               = "Standard"
   tunneling_enabled = true
 
@@ -17,8 +17,4 @@ module "bastion" {
   }
 
   tags = var.tags
-}
-
-data "azurerm_resource_group" "this" {
-  name = var.resource_group_name
 }

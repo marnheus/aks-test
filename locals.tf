@@ -46,13 +46,19 @@ resource "azurerm_role_assignment" "deployer_kv_admin" {
   principal_id         = data.azurerm_client_config.current.object_id
 }
 
+# Wait for RBAC propagation before writing secrets
+resource "time_sleep" "wait_for_rbac" {
+  depends_on      = [azurerm_role_assignment.deployer_kv_admin]
+  create_duration = "30s"
+}
+
 # Store VM credentials in Key Vault
 resource "azurerm_key_vault_secret" "jumpbox_admin_username" {
   name         = "jumpbox-admin-username"
   value        = random_pet.jumpbox_admin_username.id
   key_vault_id = module.keyvault.vault_id
 
-  depends_on = [azurerm_role_assignment.deployer_kv_admin]
+  depends_on = [time_sleep.wait_for_rbac]
 }
 
 resource "azurerm_key_vault_secret" "jumpbox_admin_password" {
@@ -60,7 +66,7 @@ resource "azurerm_key_vault_secret" "jumpbox_admin_password" {
   value        = random_password.jumpbox_windows_password.result
   key_vault_id = module.keyvault.vault_id
 
-  depends_on = [azurerm_role_assignment.deployer_kv_admin]
+  depends_on = [time_sleep.wait_for_rbac]
 }
 
 resource "azurerm_key_vault_secret" "runner_admin_username" {
@@ -68,5 +74,5 @@ resource "azurerm_key_vault_secret" "runner_admin_username" {
   value        = random_pet.runner_admin_username.id
   key_vault_id = module.keyvault.vault_id
 
-  depends_on = [azurerm_role_assignment.deployer_kv_admin]
+  depends_on = [time_sleep.wait_for_rbac]
 }

@@ -90,3 +90,7 @@ variable "key_vault_secrets_provider_enabled" {
   default     = true
 }
 
+variable "resource_group_id" {
+  description = "Resource ID of the resource group where the AKS cluster is deployed."
+  type        = string
+}

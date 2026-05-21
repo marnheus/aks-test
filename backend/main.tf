@@ -27,7 +27,13 @@ resource "azurerm_storage_account" "tfstate" {
   allow_nested_items_to_be_public = false
   shared_access_key_enabled       = false
   default_to_oauth_authentication = true
+  public_network_access_enabled   = true
   tags                            = var.tags
+
+  network_rules {
+    default_action = "Allow"
+    bypass         = ["AzureServices"]
+  }
 }
 
 # Grant the deployer Storage Blob Data Contributor on the state container

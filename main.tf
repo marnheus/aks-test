@@ -109,6 +109,7 @@ module "bastion" {
   source = "./modules/bastion"
 
   resource_group_name = azurerm_resource_group.main.name
+  resource_group_id   = azurerm_resource_group.main.id
   location            = azurerm_resource_group.main.location
   bastion_name        = "${local.name_prefix}-bastion-${local.resource_suffix}"
   subnet_id           = module.network.subnet_ids["bastion"]
@@ -146,6 +147,7 @@ module "aks" {
   source = "./modules/aks"
 
   resource_group_name        = azurerm_resource_group.main.name
+  resource_group_id          = azurerm_resource_group.main.id
   location                   = azurerm_resource_group.main.location
   cluster_name               = "${local.name_prefix}-aks-${local.resource_suffix}"
   kubernetes_version         = var.kubernetes_version

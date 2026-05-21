@@ -10,17 +10,21 @@ terraform {
       source  = "hashicorp/random"
       version = "~> 3.5"
     }
+    time = {
+      source  = "hashicorp/time"
+      version = "~> 0.11"
+    }
   }
 
   # Local backend for development
-  backend "local" {}
+  # backend "local" {}
 
   # Uncomment below and remove local backend for CI/CD with remote state
-  # backend "azurerm" {
-  #   resource_group_name  = "rg-terraform-state"
-  #   storage_account_name = "staksdemostate2026"
-  #   container_name       = "tfstate"
-  #   key                  = "aks-private.tfstate"
-  #   use_azuread_auth     = true
-  # }
+  backend "azurerm" {
+    resource_group_name  = "rg-terraform-state"
+    storage_account_name = "staksdemostate2026"
+    container_name       = "tfstate"
+    key                  = "aks-private.tfstate"
+    use_azuread_auth     = true
+  }
 }

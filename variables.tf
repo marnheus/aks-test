@@ -38,5 +38,5 @@ variable "github_repository" {
 variable "kubernetes_version" {
   type        = string
   description = "Kubernetes version for AKS cluster."
-  default     = "1.30"
+  default     = "1.33"
 }
