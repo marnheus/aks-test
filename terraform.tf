@@ -16,15 +16,9 @@ terraform {
     }
   }
 
-  # Local backend for development
-  # backend "local" {}
-
-  # Uncomment below and remove local backend for CI/CD with remote state
+  # Partial backend config - populated via -backend-config in CI/CD
+  # Required backend-config keys: resource_group_name, storage_account_name, container_name, key
   backend "azurerm" {
-    resource_group_name  = "rg-terraform-state"
-    storage_account_name = "staksdemostate2026"
-    container_name       = "tfstate"
-    key                  = "aks-private.tfstate"
-    use_azuread_auth     = true
+    use_azuread_auth = true
   }
 }

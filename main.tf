@@ -6,13 +6,26 @@ resource "azurerm_resource_group" "main" {
   tags     = var.tags
 }
 
+// VNet is created by the Bicep backend; reference it via data source
+data "azurerm_virtual_network" "backend" {
+  name                = var.backend_vnet_name
+  resource_group_name = var.backend_resource_group
+}
+
+// Blob private DNS zone is created by Bicep backend
+data "azurerm_private_dns_zone" "blob" {
+  name                = "privatelink.blob.core.windows.net"
+  resource_group_name = var.backend_resource_group
+}
+
 module "network" {
   source = "./modules/network"
 
-  resource_group_name = azurerm_resource_group.main.name
+  resource_group_name = var.backend_resource_group
   location            = azurerm_resource_group.main.location
-  vnet_name           = "${local.name_prefix}-vnet-${local.resource_suffix}"
+  vnet_name           = var.backend_vnet_name
   address_space       = var.vnet_address_space
+  existing_vnet       = true
   subnets = {
     for subnet_name, cidr in local.subnets : subnet_name => merge(
       {
@@ -33,8 +46,7 @@ module "nat_gateway" {
   location            = azurerm_resource_group.main.location
   nat_gateway_name    = "${local.name_prefix}-nat-${local.resource_suffix}"
   subnet_ids = {
-    aks    = module.network.subnet_ids["aks"]
-    runner = module.network.subnet_ids["runner"]
+    aks = module.network.subnet_ids["aks"]
   }
   tags = var.tags
 }
@@ -51,7 +63,6 @@ module "monitoring" {
 resource "azurerm_private_dns_zone" "private_link" {
   for_each = {
     keyvault = "privatelink.vaultcore.azure.net"
-    blob     = "privatelink.blob.core.windows.net"
     acr      = "privatelink.azurecr.io"
   }
 
@@ -66,7 +77,7 @@ resource "azurerm_private_dns_zone_virtual_network_link" "private_link" {
   name                  = "${local.name_prefix}-${each.key}-dns-link-${local.resource_suffix}"
   resource_group_name   = azurerm_resource_group.main.name
   private_dns_zone_name = each.value.name
-  virtual_network_id    = module.network.vnet_id
+  virtual_network_id    = data.azurerm_virtual_network.backend.id
   registration_enabled  = false
   tags                  = var.tags
 }
@@ -90,7 +101,7 @@ module "storage" {
   location                   = azurerm_resource_group.main.location
   storage_account_name       = substr(lower(replace("${local.name_prefix}storage${local.resource_suffix}", "-", "")), 0, 24)
   private_endpoint_subnet_id = module.network.subnet_ids["private_endpoint"]
-  private_dns_zone_ids       = [azurerm_private_dns_zone.private_link["blob"].id]
+  private_dns_zone_ids       = [data.azurerm_private_dns_zone.blob.id]
   tags                       = var.tags
 }
 
@@ -128,20 +139,7 @@ module "jumpbox" {
   tags                = var.tags
 }
 
-module "github_runner" {
-  source = "./modules/github-runner"
-
-  resource_group_name = azurerm_resource_group.main.name
-  location            = azurerm_resource_group.main.location
-  subnet_id           = module.network.subnet_ids["runner"]
-  vm_name             = "${local.name_prefix}-runner-${local.resource_suffix}"
-  admin_username      = random_pet.runner_admin_username.id
-  github_runner_token = var.github_runner_token
-  github_repository   = var.github_repository
-  tags                = var.tags
-
-  depends_on = [module.nat_gateway]
-}
+// GitHub runner is deployed by the Bicep backend (see backend/main.bicep)
 
 module "aks" {
   source = "./modules/aks"

@@ -4,9 +4,30 @@ on:
   pull_request:
     branches:
       - main
+    paths:
+      - '*.tf'
+      - '*.tfvars'
+      - 'modules/**'
+      - '.github/workflows/terraform.yml'
   push:
     branches:
       - main
+    paths:
+      - '*.tf'
+      - '*.tfvars'
+      - 'modules/**'
+      - '.github/workflows/terraform.yml'
+  workflow_dispatch:
+    inputs:
+      action:
+        description: 'Action to perform'
+        required: true
+        type: choice
+        options:
+          - plan
+          - apply
+          - destroy
+        default: 'plan'
 
 permissions:
   id-token: write
@@ -27,8 +48,8 @@ env:
 
 jobs:
   plan:
-    name: Terraform plan
-    runs-on: ubuntu-latest # Switch to self-hosted later if private network access is required.
+    name: Terraform Plan
+    runs-on: [self-hosted, linux, azure]
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -44,21 +65,6 @@ jobs:
         uses: hashicorp/setup-terraform@v3
         with:
           terraform_wrapper: false
-
-      - name: Switch backend to Azure Storage for CI/CD
-        run: |
-          python - <<'PY'
-          from pathlib import Path
-
-          path = Path('terraform.tf')
-          content = path.read_text(encoding='utf-8')
-          updated = content.replace('backend "local" {}', 'backend "azurerm" {}', 1)
-
-          if content == updated:
-              raise SystemExit('Expected local backend declaration was not found in terraform.tf')
-
-          path.write_text(updated, encoding='utf-8')
-          PY
 
       - name: Terraform init
         run: |
@@ -80,7 +86,7 @@ jobs:
         run: terraform show -no-color tfplan > tfplan.txt
 
       - name: Upload Terraform plan artifact
-        if: github.event_name == 'push'
+        if: github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && inputs.action == 'apply')
         uses: actions/upload-artifact@v4
         with:
           name: tfplan
@@ -143,11 +149,11 @@ jobs:
             }
 
   apply:
-    name: Terraform apply
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    name: Terraform Apply
+    if: (github.event_name == 'push' && github.ref == 'refs/heads/main') || (github.event_name == 'workflow_dispatch' && inputs.action == 'apply')
     needs:
       - plan
-    runs-on: ubuntu-latest # Switch to self-hosted later if private network access is required.
+    runs-on: [self-hosted, linux, azure]
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -163,21 +169,6 @@ jobs:
         uses: hashicorp/setup-terraform@v3
         with:
           terraform_wrapper: false
-
-      - name: Switch backend to Azure Storage for CI/CD
-        run: |
-          python - <<'PY'
-          from pathlib import Path
-
-          path = Path('terraform.tf')
-          content = path.read_text(encoding='utf-8')
-          updated = content.replace('backend "local" {}', 'backend "azurerm" {}', 1)
-
-          if content == updated:
-              raise SystemExit('Expected local backend declaration was not found in terraform.tf')
-
-          path.write_text(updated, encoding='utf-8')
-          PY
 
       - name: Terraform init
         run: |
@@ -196,3 +187,36 @@ jobs:
 
       - name: Terraform apply
         run: terraform apply -input=false -no-color tfplan
+
+  destroy:
+    name: Terraform Destroy
+    if: github.event_name == 'workflow_dispatch' && inputs.action == 'destroy'
+    runs-on: [self-hosted, linux, azure]
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Azure login
+        uses: azure/login@v2
+        with:
+          client-id: ${{ env.ARM_CLIENT_ID }}
+          tenant-id: ${{ env.ARM_TENANT_ID }}
+          subscription-id: ${{ env.ARM_SUBSCRIPTION_ID }}
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_wrapper: false
+
+      - name: Terraform init
+        run: |
+          terraform init -input=false -no-color -reconfigure \
+            -backend-config="resource_group_name=${{ secrets.TFSTATE_RESOURCE_GROUP }}" \
+            -backend-config="storage_account_name=${{ secrets.TFSTATE_STORAGE_ACCOUNT }}" \
+            -backend-config="container_name=${{ secrets.TFSTATE_CONTAINER }}" \
+            -backend-config="key=${{ secrets.TFSTATE_KEY }}" \
+            -backend-config="use_oidc=true" \
+            -backend-config="use_azuread_auth=true"
+
+      - name: Terraform destroy
+        run: terraform destroy -input=false -no-color -auto-approve

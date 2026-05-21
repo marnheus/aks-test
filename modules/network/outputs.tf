@@ -1,17 +1,17 @@
 output "vnet_id" {
   description = "Resource ID of the virtual network."
-  value       = module.vnet.resource_id
+  value       = "/subscriptions/${data.azurerm_client_config.current.subscription_id}/resourceGroups/${var.resource_group_name}/providers/Microsoft.Network/virtualNetworks/${var.vnet_name}"
 }
 
 output "vnet_name" {
   description = "Name of the virtual network."
-  value       = module.vnet.name
+  value       = var.vnet_name
 }
 
 output "subnet_ids" {
   description = "Map of subnet keys to subnet resource IDs."
   value = {
-    for subnet_key, subnet in module.vnet.subnets : subnet_key => subnet.resource_id
+    for subnet_key, subnet in azurerm_subnet.subnet : subnet_key => subnet.id
   }
 }
 

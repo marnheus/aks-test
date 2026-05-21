@@ -33,25 +33,21 @@ resource "azurerm_network_security_group" "subnet" {
   tags                = var.tags
 }
 
-module "vnet" {
-  source  = "Azure/avm-res-network-virtualnetwork/azurerm"
-  version = "~> 0.4"
+# Add subnets to the existing VNet (created by Bicep backend)
+resource "azurerm_subnet" "subnet" {
+  for_each = var.subnets
 
-  name          = var.vnet_name
-  location      = var.location
-  parent_id     = "/subscriptions/${data.azurerm_client_config.current.subscription_id}/resourceGroups/${var.resource_group_name}"
-  address_space = var.address_space
-  tags          = var.tags
+  name                 = local.subnet_names[each.key]
+  resource_group_name  = var.resource_group_name
+  virtual_network_name = var.vnet_name
+  address_prefixes     = [each.value.address_prefix]
+}
 
-  subnets = {
-    for subnet_key, subnet in var.subnets : subnet_key => {
-      name             = local.subnet_names[subnet_key]
-      address_prefixes = [subnet.address_prefix]
-      network_security_group = contains(keys(local.subnets_with_nsgs), subnet_key) ? {
-        id = azurerm_network_security_group.subnet[subnet_key].id
-      } : null
-    }
-  }
+resource "azurerm_subnet_network_security_group_association" "subnet" {
+  for_each = local.subnets_with_nsgs
+
+  subnet_id                 = azurerm_subnet.subnet[each.key].id
+  network_security_group_id = azurerm_network_security_group.subnet[each.key].id
 }
 
 resource "azurerm_private_dns_zone" "aks" {
@@ -64,7 +60,7 @@ resource "azurerm_private_dns_zone_virtual_network_link" "aks" {
   name                  = "${var.vnet_name}-aks-link"
   resource_group_name   = var.resource_group_name
   private_dns_zone_name = azurerm_private_dns_zone.aks.name
-  virtual_network_id    = module.vnet.resource_id
+  virtual_network_id    = "/subscriptions/${data.azurerm_client_config.current.subscription_id}/resourceGroups/${var.resource_group_name}/providers/Microsoft.Network/virtualNetworks/${var.vnet_name}"
   registration_enabled  = false
 
   tags = var.tags

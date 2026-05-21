@@ -1,33 +1,24 @@
-# Copy this file to terraform.tfvars and replace placeholder values with real ones.
-# Do not commit terraform.tfvars with secrets or environment-specific values.
+# Copy this file to terraform.tfvars and adjust values.
+# Sensitive values are passed via GitHub Secrets (TF_VAR_* environment variables in CI).
 
 # Azure region for all resources.
-# Optional: defaults to "canadacentral".
-location = "canadacentral"
+location = "westeurope"
 
-# Name of the Azure resource group to create or use for this deployment.
-# Required.
-resource_group_name = "rg-aks-demo-canadacentral"
+# Name of the Azure resource group for the main infrastructure.
+resource_group_name = "rg-aks-demo-westeurope"
+
+# Backend resource group (created by Bicep deployment).
+backend_resource_group = "rg-aks-backend-westeurope"
+
+# Backend VNet name (created by Bicep deployment).
+backend_vnet_name = "vnet-aksbackend"
 
 # Tags applied to all resources.
-# Optional: defaults shown below.
 tags = {
   environment = "demo"
   managed_by  = "terraform"
+  project     = "aks-demo"
 }
 
-# Address space for the virtual network.
-# Optional: defaults to the value below.
-vnet_address_space = ["10.0.0.0/16"]
-
-# GitHub personal access token used to register the self-hosted runner.
-# Required and sensitive. Use a token with the permissions needed for runner registration.
-github_runner_token = "replace-with-github-runner-token"
-
-# GitHub repository for runner registration in owner/repo format.
-# Required.
-github_repository = "your-org/your-repo"
-
 # Kubernetes version for the AKS cluster.
-# Optional: defaults to "1.30".
-kubernetes_version = "1.30"
+kubernetes_version = "1.33"

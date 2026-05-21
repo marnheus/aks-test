@@ -3,11 +3,11 @@ locals {
   name_prefix     = "aks-demo"
 
   # Subnet address ranges within 10.0.0.0/16
+  # Runner (10.0.250.0/24) and PE (10.0.251.0/24) subnets are managed by the Bicep backend
   subnets = {
     aks              = "10.0.0.0/22"   # /22 = 1024 IPs for AKS nodes + pods
     bastion          = "10.0.4.0/26"   # /26 = 64 IPs (Azure Bastion requirement)
     jumpbox          = "10.0.4.64/26"  # /26 = 64 IPs
-    runner           = "10.0.4.128/26" # /26 = 64 IPs
     private_endpoint = "10.0.5.0/24"   # /24 = 256 IPs for private endpoints
   }
 }
@@ -20,11 +20,6 @@ resource "random_string" "suffix" {
 
 # Auto-generated VM admin credentials
 resource "random_pet" "jumpbox_admin_username" {
-  length    = 2
-  separator = ""
-}
-
-resource "random_pet" "runner_admin_username" {
   length    = 2
   separator = ""
 }
@@ -69,10 +64,4 @@ resource "azurerm_key_vault_secret" "jumpbox_admin_password" {
   depends_on = [time_sleep.wait_for_rbac]
 }
 
-resource "azurerm_key_vault_secret" "runner_admin_username" {
-  name         = "runner-admin-username"
-  value        = random_pet.runner_admin_username.id
-  key_vault_id = module.keyvault.vault_id
 
-  depends_on = [time_sleep.wait_for_rbac]
-}

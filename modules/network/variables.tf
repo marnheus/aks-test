@@ -1,5 +1,5 @@
 variable "resource_group_name" {
-  description = "Name of the resource group where the network resources are deployed."
+  description = "Name of the resource group where the VNet exists (backend RG)."
   type        = string
 
   validation {
@@ -19,7 +19,7 @@ variable "location" {
 }
 
 variable "vnet_name" {
-  description = "Name of the virtual network."
+  description = "Name of the existing virtual network (created by Bicep backend)."
   type        = string
 
   validation {
@@ -29,18 +29,15 @@ variable "vnet_name" {
 }
 
 variable "address_space" {
-  description = "Address space assigned to the virtual network."
+  description = "Address space assigned to the virtual network (for reference only, VNet is managed by Bicep)."
   type        = list(string)
+  default     = ["10.0.0.0/16"]
+}
 
-  validation {
-    condition     = length(var.address_space) > 0
-    error_message = "address_space must contain at least one CIDR block."
-  }
-
-  validation {
-    condition     = alltrue([for cidr in var.address_space : can(cidrhost(cidr, 0))])
-    error_message = "Each address_space entry must be a valid CIDR block."
-  }
+variable "existing_vnet" {
+  description = "Whether to use an existing VNet (true) or create a new one (false). Must be true - VNet is created by Bicep backend."
+  type        = bool
+  default     = true
 }
 
 variable "subnets" {
@@ -58,21 +55,6 @@ variable "subnets" {
   validation {
     condition     = alltrue([for subnet in values(var.subnets) : can(cidrhost(subnet.address_prefix, 0))])
     error_message = "Each subnet address_prefix must be a valid CIDR block."
-  }
-
-  validation {
-    condition = length(distinct([
-      for subnet_key, subnet in var.subnets : coalesce(try(subnet.name_override, null), subnet_key)
-    ])) == length(var.subnets)
-    error_message = "Each subnet must resolve to a unique Azure subnet name."
-  }
-
-  validation {
-    condition = !contains(keys(var.subnets), "AzureBastionSubnet") || coalesce(
-      try(var.subnets["AzureBastionSubnet"].name_override, null),
-      "AzureBastionSubnet"
-    ) == "AzureBastionSubnet"
-    error_message = "If the bastion subnet key is AzureBastionSubnet, its effective Azure subnet name must remain AzureBastionSubnet."
   }
 }
 

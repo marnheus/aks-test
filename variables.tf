@@ -1,7 +1,7 @@
 variable "location" {
   type        = string
   description = "Azure region for all resources."
-  default     = "canadacentral"
+  default     = "westeurope"
 }
 
 variable "resource_group_name" {
@@ -24,15 +24,14 @@ variable "vnet_address_space" {
   default     = ["10.0.0.0/16"]
 }
 
-variable "github_runner_token" {
+variable "backend_resource_group" {
   type        = string
-  description = "GitHub personal access token for runner registration."
-  sensitive   = true
+  description = "Name of the resource group containing the backend VNet (deployed by Bicep)."
 }
 
-variable "github_repository" {
+variable "backend_vnet_name" {
   type        = string
-  description = "GitHub repository in format owner/repo for runner registration."
+  description = "Name of the VNet created by the Bicep backend."
 }
 
 variable "kubernetes_version" {
