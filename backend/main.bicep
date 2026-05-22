@@ -208,93 +208,40 @@ var githubOwner = split(githubRepository, '/')[0]
 var githubRepoName = split(githubRepository, '/')[1]
 var runnerUser = 'githubrunner'
 
-var cloudInitScript = '''#!/usr/bin/env bash
-set -euxo pipefail
+// Build the runner install script with Bicep string interpolation
+var installScript = join([
+  '#!/usr/bin/env bash'
+  'set -euxo pipefail'
+  'RUNNER_USER="${runnerUser}"'
+  'RUNNER_HOME="/home/${runnerUser}"'
+  'REPOSITORY="${githubRepository}"'
+  'OWNER="${githubOwner}"'
+  'REPO_NAME="${githubRepoName}"'
+  'VM_NAME="${runnerVmName}"'
+  'TOKEN="${githubRunnerToken}"'
+  'apt-get update && apt-get install -y curl jq tar gzip ca-certificates git unzip build-essential apt-transport-https gnupg lsb-release docker.io'
+  'systemctl enable docker && systemctl start docker'
+  'if ! id "$RUNNER_USER" >/dev/null 2>&1; then useradd --create-home --home-dir "$RUNNER_HOME" --shell /bin/bash "$RUNNER_USER"; fi'
+  'usermod -aG docker "$RUNNER_USER"'
+  'install -d -m 0755 -o "$RUNNER_USER" -g "$RUNNER_USER" "$RUNNER_HOME/actions-runner"'
+  'REGISTRATION_TOKEN="$TOKEN"'
+  'API_RESPONSE=$(curl -fsSL -X POST -H "Accept: application/vnd.github+json" -H "Authorization: Bearer $TOKEN" "https://api.github.com/repos/$OWNER/$REPO_NAME/actions/runners/registration-token" || true)'
+  'if [ -n "$API_RESPONSE" ]; then API_TOKEN=$(printf "%s" "$API_RESPONSE" | jq -r ".token // empty"); if [ -n "$API_TOKEN" ]; then REGISTRATION_TOKEN="$API_TOKEN"; fi; fi'
+  'RUNNER_VERSION=$(curl -fsSL "https://api.github.com/repos/actions/runner/releases/latest" | jq -r ".tag_name | ltrimstr(\\"v\\")")'
+  'RUNNER_ARCHIVE="actions-runner-linux-x64-$RUNNER_VERSION.tar.gz"'
+  'RUNNER_URL="https://github.com/actions/runner/releases/download/v$RUNNER_VERSION/$RUNNER_ARCHIVE"'
+  'curl -fsSL "$RUNNER_URL" -o "$RUNNER_HOME/$RUNNER_ARCHIVE"'
+  'chown "$RUNNER_USER:$RUNNER_USER" "$RUNNER_HOME/$RUNNER_ARCHIVE"'
+  'runuser -u "$RUNNER_USER" -- bash -lc "set -euo pipefail; cd $RUNNER_HOME/actions-runner; if [ ! -f .runner ]; then tar xzf $RUNNER_HOME/$RUNNER_ARCHIVE; ./config.sh --unattended --replace --url https://github.com/$REPOSITORY --token $REGISTRATION_TOKEN --name $VM_NAME --work _work --labels self-hosted,linux,azure; fi"'
+  'cd "$RUNNER_HOME/actions-runner"'
+  './bin/installdependencies.sh'
+  './svc.sh install "$RUNNER_USER"'
+  './svc.sh start'
+  'rm -f "$RUNNER_HOME/$RUNNER_ARCHIVE"'
+], '\n')
 
-RUNNER_USER="{0}"
-RUNNER_HOME="/home/{0}"
-REPOSITORY="{1}"
-OWNER="{2}"
-REPO_NAME="{3}"
-VM_NAME="{4}"
-TOKEN="{5}"
-
-if ! id "$RUNNER_USER" >/dev/null 2>&1; then
-  useradd --create-home --home-dir "$RUNNER_HOME" --shell /bin/bash "$RUNNER_USER"
-fi
-
-install -d -m 0755 -o "$RUNNER_USER" -g "$RUNNER_USER" "$RUNNER_HOME/actions-runner"
-
-# Get registration token from PAT
-REGISTRATION_TOKEN="$TOKEN"
-API_RESPONSE=$(curl -fsSL -X POST \
-  -H "Accept: application/vnd.github+json" \
-  -H "Authorization: Bearer $TOKEN" \
-  "https://api.github.com/repos/$OWNER/$REPO_NAME/actions/runners/registration-token" || true)
-
-if [ -n "$API_RESPONSE" ]; then
-  API_TOKEN=$(printf '%s' "$API_RESPONSE" | jq -r '.token // empty')
-  if [ -n "$API_TOKEN" ]; then
-    REGISTRATION_TOKEN="$API_TOKEN"
-  fi
-fi
-
-# Download latest runner
-RUNNER_VERSION=$(curl -fsSL "https://api.github.com/repos/actions/runner/releases/latest" | jq -r '.tag_name | ltrimstr("v")')
-RUNNER_ARCHIVE="actions-runner-linux-x64-$RUNNER_VERSION.tar.gz"
-RUNNER_URL="https://github.com/actions/runner/releases/download/v$RUNNER_VERSION/$RUNNER_ARCHIVE"
-RUNNER_ARCHIVE_PATH="$RUNNER_HOME/$RUNNER_ARCHIVE"
-
-curl -fsSL "$RUNNER_URL" -o "$RUNNER_ARCHIVE_PATH"
-chown "$RUNNER_USER:$RUNNER_USER" "$RUNNER_ARCHIVE_PATH"
-
-# Configure runner
-runuser -u "$RUNNER_USER" -- bash -lc "
-  set -euo pipefail
-  cd '$RUNNER_HOME/actions-runner'
-  if [ ! -f .runner ]; then
-    tar xzf '$RUNNER_ARCHIVE_PATH'
-    ./config.sh --unattended --replace --url 'https://github.com/$REPOSITORY' --token '$REGISTRATION_TOKEN' --name '$VM_NAME' --work '_work' --labels 'self-hosted,linux,azure'
-  fi
-"
-
-# Install as service
-cd "$RUNNER_HOME/actions-runner"
-./bin/installdependencies.sh
-./svc.sh install "$RUNNER_USER"
-./svc.sh start
-
-rm -f "$RUNNER_ARCHIVE_PATH"
-'''
-
-var cloudInit = format('''#cloud-config
-package_update: true
-package_upgrade: false
-packages:
-  - curl
-  - jq
-  - tar
-  - gzip
-  - ca-certificates
-  - git
-  - unzip
-  - build-essential
-  - apt-transport-https
-  - gnupg
-  - lsb-release
-  - docker.io
-write_files:
-  - path: /usr/local/bin/install-github-runner.sh
-    permissions: "0755"
-    owner: root:root
-    content: |
-      {0}
-runcmd:
-  - [bash, /usr/local/bin/install-github-runner.sh]
-  - [systemctl, enable, docker]
-  - [systemctl, start, docker]
-  - [usermod, -aG, docker, githubrunner]
-''', replace(replace(replace(replace(replace(replace(cloudInitScript, '{0}', runnerUser), '{1}', githubRepository), '{2}', githubOwner), '{3}', githubRepoName), '{4}', runnerVmName), '{5}', githubRunnerToken))
+// customData must be base64-encoded; the script runs directly via cloud-init
+var cloudInit = base64(installScript)
 
 resource runnerNic 'Microsoft.Network/networkInterfaces@2024-05-01' = {
   name: runnerNicName
@@ -330,7 +277,7 @@ resource runnerVm 'Microsoft.Compute/virtualMachines@2024-07-01' = {
       computerName: runnerVmName
       adminUsername: runnerUser
       adminPassword: runnerAdminPassword
-      customData: base64(cloudInit)
+      customData: cloudInit
       linuxConfiguration: {
         disablePasswordAuthentication: false
       }
