@@ -219,11 +219,21 @@ var installScript = join([
   'REPO_NAME="${githubRepoName}"'
   'VM_NAME="${runnerVmName}"'
   'TOKEN="${githubRunnerToken}"'
-  'apt-get update && apt-get install -y curl jq tar gzip ca-certificates git unzip build-essential apt-transport-https gnupg lsb-release docker.io'
+  // Install base packages
+  'apt-get update && apt-get install -y curl jq tar gzip ca-certificates git unzip build-essential apt-transport-https gnupg lsb-release docker.io software-properties-common'
+  // Install Azure CLI
+  'curl -sL https://aka.ms/InstallAzureCLIDeb | bash'
+  // Install Terraform
+  'curl -fsSL https://apt.releases.hashicorp.com/gpg | gpg --dearmor -o /usr/share/keyrings/hashicorp-archive-keyring.gpg'
+  'echo "deb [signed-by=/usr/share/keyrings/hashicorp-archive-keyring.gpg] https://apt.releases.hashicorp.com $(lsb_release -cs) main" > /etc/apt/sources.list.d/hashicorp.list'
+  'apt-get update && apt-get install -y terraform'
+  // Docker
   'systemctl enable docker && systemctl start docker'
+  // Create runner user
   'if ! id "$RUNNER_USER" >/dev/null 2>&1; then useradd --create-home --home-dir "$RUNNER_HOME" --shell /bin/bash "$RUNNER_USER"; fi'
   'usermod -aG docker "$RUNNER_USER"'
   'install -d -m 0755 -o "$RUNNER_USER" -g "$RUNNER_USER" "$RUNNER_HOME/actions-runner"'
+  // Register GitHub runner
   'REGISTRATION_TOKEN="$TOKEN"'
   'API_RESPONSE=$(curl -fsSL -X POST -H "Accept: application/vnd.github+json" -H "Authorization: Bearer $TOKEN" "https://api.github.com/repos/$OWNER/$REPO_NAME/actions/runners/registration-token" || true)'
   'if [ -n "$API_RESPONSE" ]; then API_TOKEN=$(printf "%s" "$API_RESPONSE" | jq -r ".token // empty"); if [ -n "$API_TOKEN" ]; then REGISTRATION_TOKEN="$API_TOKEN"; fi; fi'
