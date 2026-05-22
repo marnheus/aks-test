@@ -30,8 +30,9 @@ param githubRepository string
 @description('VM size for the runner')
 param runnerVmSize string = 'Standard_B2s'
 
-@description('Tags for all resources')
-param tags object = {}
+@description('Admin password for the runner VM (auto-generated if not provided)')
+@secure()
+param runnerAdminPassword string = newGuid()
 
 // ─── Variables ────────────────────────────────────────────────────────────────
 
@@ -325,17 +326,10 @@ resource runnerVm 'Microsoft.Compute/virtualMachines@2024-07-01' = {
     osProfile: {
       computerName: runnerVmName
       adminUsername: runnerUser
+      adminPassword: runnerAdminPassword
       customData: base64(cloudInit)
       linuxConfiguration: {
-        disablePasswordAuthentication: true
-        ssh: {
-          publicKeys: [
-            {
-              path: '/home/${runnerUser}/.ssh/authorized_keys'
-              keyData: runnerSshKey.properties.publicKey
-            }
-          ]
-        }
+        disablePasswordAuthentication: false
       }
     }
     storageProfile: {
@@ -361,15 +355,6 @@ resource runnerVm 'Microsoft.Compute/virtualMachines@2024-07-01' = {
         }
       ]
     }
-  }
-}
-
-resource runnerSshKey 'Microsoft.Compute/sshPublicKeys@2024-07-01' = {
-  name: '${runnerVmName}-sshkey'
-  location: location
-  tags: tags
-  properties: {
-    // Azure will auto-generate a key pair
   }
 }
 
