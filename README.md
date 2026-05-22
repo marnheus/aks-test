@@ -49,7 +49,7 @@ Deploys into the existing VNet created by the backend:
 - Azure AD app registration with OIDC federation for GitHub Actions
 - GitHub personal access token (for runner registration)
 
-## GitHub Secrets Required
+## GitHub Secrets Required (in `dev` environment)
 
 | Secret | Purpose |
 |--------|---------|
@@ -57,12 +57,15 @@ Deploys into the existing VNet created by the backend:
 | `ARM_SUBSCRIPTION_ID` | Azure subscription ID |
 | `ARM_TENANT_ID` | Azure AD tenant ID |
 | `RUNNER_TOKEN` | PAT for runner registration |
+
+## GitHub Environment Variables (in `dev` environment)
+
+| Variable | Purpose |
+|----------|---------|
 | `TFSTATE_RESOURCE_GROUP` | Backend resource group name |
 | `TFSTATE_STORAGE_ACCOUNT` | Backend storage account name |
 | `TFSTATE_CONTAINER` | Blob container for state (`tfstate`) |
 | `TFSTATE_KEY` | State file key (`aks-private.tfstate`) |
-
-All secrets are configured in the **`dev`** GitHub environment.
 
 ## Usage
 
