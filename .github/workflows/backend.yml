@@ -49,7 +49,7 @@ jobs:
           az deployment group what-if \
             --resource-group ${{ env.RESOURCE_GROUP }} \
             --template-file backend/main.bicep \
-            --parameters backend/main.bicepparam \
+            --parameters backend/main.parameters.json \
             --parameters githubRunnerToken='${{ secrets.RUNNER_TOKEN }}'
 
       - name: Deploy Backend
@@ -58,7 +58,7 @@ jobs:
           az deployment group create \
             --resource-group ${{ env.RESOURCE_GROUP }} \
             --template-file backend/main.bicep \
-            --parameters backend/main.bicepparam \
+            --parameters backend/main.parameters.json \
             --parameters githubRunnerToken='${{ secrets.RUNNER_TOKEN }}' \
             --name backend-$(date +%Y%m%d%H%M%S)
 

@@ -1,0 +1,37 @@
+{
+  "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentParameters.json#",
+  "contentVersion": "1.0.0.0",
+  "parameters": {
+    "location": {
+      "value": "westeurope"
+    },
+    "baseName": {
+      "value": "aksbackend"
+    },
+    "vnetAddressPrefix": {
+      "value": "10.0.0.0/16"
+    },
+    "runnerSubnetPrefix": {
+      "value": "10.0.250.0/24"
+    },
+    "peSubnetPrefix": {
+      "value": "10.0.251.0/24"
+    },
+    "storageAccountName": {
+      "value": "staksdemostate2026"
+    },
+    "githubRepository": {
+      "value": "marnheus/aks-test"
+    },
+    "runnerVmSize": {
+      "value": "Standard_B2s"
+    },
+    "tags": {
+      "value": {
+        "project": "aks-demo",
+        "environment": "shared",
+        "managedBy": "bicep"
+      }
+    }
+  }
+}
