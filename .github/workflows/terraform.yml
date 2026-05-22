@@ -50,6 +50,7 @@ jobs:
   plan:
     name: Terraform Plan
     runs-on: [self-hosted, linux, azure]
+    environment: dev
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -154,6 +155,7 @@ jobs:
     needs:
       - plan
     runs-on: [self-hosted, linux, azure]
+    environment: dev
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -192,6 +194,7 @@ jobs:
     name: Terraform Destroy
     if: github.event_name == 'workflow_dispatch' && inputs.action == 'destroy'
     runs-on: [self-hosted, linux, azure]
+    environment: dev
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4

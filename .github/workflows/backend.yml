@@ -24,6 +24,7 @@ jobs:
   deploy-backend:
     name: Deploy Backend
     runs-on: ubuntu-latest
+    environment: dev
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -49,7 +50,7 @@ jobs:
             --resource-group ${{ env.RESOURCE_GROUP }} \
             --template-file backend/main.bicep \
             --parameters backend/main.bicepparam \
-            --parameters githubRunnerToken='${{ secrets.GITHUB_RUNNER_TOKEN }}'
+            --parameters githubRunnerToken='${{ secrets.RUNNER_TOKEN }}'
 
       - name: Deploy Backend
         if: inputs.action == 'deploy'
@@ -58,7 +59,7 @@ jobs:
             --resource-group ${{ env.RESOURCE_GROUP }} \
             --template-file backend/main.bicep \
             --parameters backend/main.bicepparam \
-            --parameters githubRunnerToken='${{ secrets.GITHUB_RUNNER_TOKEN }}' \
+            --parameters githubRunnerToken='${{ secrets.RUNNER_TOKEN }}' \
             --name backend-$(date +%Y%m%d%H%M%S)
 
       - name: Show Outputs

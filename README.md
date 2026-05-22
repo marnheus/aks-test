@@ -56,11 +56,13 @@ Deploys into the existing VNet created by the backend:
 | `ARM_CLIENT_ID` | Azure AD app registration client ID (OIDC) |
 | `ARM_SUBSCRIPTION_ID` | Azure subscription ID |
 | `ARM_TENANT_ID` | Azure AD tenant ID |
-| `GITHUB_RUNNER_TOKEN` | PAT for runner registration |
+| `RUNNER_TOKEN` | PAT for runner registration |
 | `TFSTATE_RESOURCE_GROUP` | Backend resource group name |
 | `TFSTATE_STORAGE_ACCOUNT` | Backend storage account name |
 | `TFSTATE_CONTAINER` | Blob container for state (`tfstate`) |
 | `TFSTATE_KEY` | State file key (`aks-private.tfstate`) |
+
+All secrets are configured in the **`dev`** GitHub environment.
 
 ## Usage
 
