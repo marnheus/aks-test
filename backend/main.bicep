@@ -30,6 +30,9 @@ param githubRepository string
 @description('VM size for the runner')
 param runnerVmSize string = 'Standard_B2s'
 
+@description('Tags for all resources')
+param tags object = {}
+
 @description('Admin password for the runner VM (auto-generated if not provided)')
 @secure()
 param runnerAdminPassword string = newGuid()
