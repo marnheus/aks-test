@@ -50,11 +50,6 @@ resource "azurerm_subnet_nat_gateway_association" "aks" {
   nat_gateway_id = data.azurerm_nat_gateway.backend.id
 }
 
-resource "azurerm_subnet_nat_gateway_association" "jumpbox" {
-  subnet_id      = module.network.subnet_ids["jumpbox"]
-  nat_gateway_id = data.azurerm_nat_gateway.backend.id
-}
-
 module "monitoring" {
   source = "./modules/monitoring"
 
@@ -118,29 +113,6 @@ module "acr" {
   private_endpoint_subnet_id = module.network.subnet_ids["private_endpoint"]
   private_dns_zone_ids       = [azurerm_private_dns_zone.private_link["acr"].id]
   tags                       = var.tags
-}
-
-module "bastion" {
-  source = "./modules/bastion"
-
-  resource_group_name = azurerm_resource_group.main.name
-  resource_group_id   = azurerm_resource_group.main.id
-  location            = azurerm_resource_group.main.location
-  bastion_name        = "${local.name_prefix}-bastion-${local.resource_suffix}"
-  subnet_id           = module.network.subnet_ids["bastion"]
-  tags                = var.tags
-}
-
-module "jumpbox" {
-  source = "./modules/jumpbox"
-
-  resource_group_name = azurerm_resource_group.main.name
-  location            = azurerm_resource_group.main.location
-  subnet_id           = module.network.subnet_ids["jumpbox"]
-  name_prefix         = "${local.name_prefix}-${local.resource_suffix}"
-  admin_username      = random_pet.jumpbox_admin_username.id
-  admin_password      = random_password.jumpbox_windows_password.result
-  tags                = var.tags
 }
 
 // GitHub runner is deployed by the Bicep backend (see backend/main.bicep)

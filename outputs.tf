@@ -17,8 +17,3 @@ output "key_vault_uri" {
   value       = module.keyvault.vault_uri
   description = "The URI of the Key Vault."
 }
-
-output "bastion_name" {
-  value       = module.bastion.bastion_name
-  description = "The name of the Azure Bastion host."
-}
