@@ -60,26 +60,29 @@ resource vnet 'Microsoft.Network/virtualNetworks@2024-05-01' = {
     addressSpace: {
       addressPrefixes: [vnetAddressPrefix]
     }
-    subnets: [
-      {
-        name: runnerSubnetName
-        properties: {
-          addressPrefix: runnerSubnetPrefix
-          natGateway: {
-            id: natGateway.id
-          }
-          privateEndpointNetworkPolicies: 'Disabled'
-        }
-      }
-      {
-        name: peSubnetName
-        properties: {
-          addressPrefix: peSubnetPrefix
-          privateEndpointNetworkPolicies: 'Disabled'
-        }
-      }
-    ]
   }
+}
+
+resource runnerSubnet 'Microsoft.Network/virtualNetworks/subnets@2024-05-01' = {
+  parent: vnet
+  name: runnerSubnetName
+  properties: {
+    addressPrefix: runnerSubnetPrefix
+    natGateway: {
+      id: natGateway.id
+    }
+    privateEndpointNetworkPolicies: 'Disabled'
+  }
+}
+
+resource peSubnet 'Microsoft.Network/virtualNetworks/subnets@2024-05-01' = {
+  parent: vnet
+  name: peSubnetName
+  properties: {
+    addressPrefix: peSubnetPrefix
+    privateEndpointNetworkPolicies: 'Disabled'
+  }
+  dependsOn: [runnerSubnet]
 }
 
 // ─── NAT Gateway ──────────────────────────────────────────────────────────────
@@ -173,7 +176,7 @@ resource storagePrivateEndpoint 'Microsoft.Network/privateEndpoints@2024-05-01' 
   tags: tags
   properties: {
     subnet: {
-      id: vnet.properties.subnets[1].id
+      id: peSubnet.id
     }
     privateLinkServiceConnections: [
       {
@@ -263,7 +266,7 @@ resource runnerNic 'Microsoft.Network/networkInterfaces@2024-05-01' = {
         name: 'internal'
         properties: {
           subnet: {
-            id: vnet.properties.subnets[0].id
+            id: runnerSubnet.id
           }
           privateIPAllocationMethod: 'Dynamic'
         }
@@ -340,7 +343,7 @@ output resourceGroupName string = resourceGroup().name
 output storageAccountName string = storageAccount.name
 output stateContainerName string = stateContainerName
 output runnerVmName string = runnerVm.name
-output runnerSubnetId string = vnet.properties.subnets[0].id
-output peSubnetId string = vnet.properties.subnets[1].id
+output runnerSubnetId string = runnerSubnet.id
+output peSubnetId string = peSubnet.id
 output natGatewayId string = natGateway.id
 output natGatewayName string = natGateway.name
