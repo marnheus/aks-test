@@ -157,71 +157,52 @@ module "dns_resolver" {
   tags                = var.tags
 }
 
-# Generate VPN client profile from gateway (Azure produces the correct XML)
-resource "terraform_data" "vpn_profile" {
-  triggers_replace = [
-    module.vpn_gateway.gateway_id,
-    module.dns_resolver.inbound_endpoint_ip
-  ]
-
-  provisioner "local-exec" {
-    command = <<-EOT
-      set -e
-      # Generate VPN client package URL from gateway
-      PROFILE_URL=$(az network vnet-gateway vpn-client generate \
-        --resource-group "${var.backend_resource_group}" \
-        --name "${module.vpn_gateway.gateway_name}" \
-        --authentication-method EAPTLS \
-        -o tsv)
-
-      # Download and extract the profile
-      curl -sL "$PROFILE_URL" -o /tmp/vpnprofile.zip
-      unzip -o /tmp/vpnprofile.zip -d /tmp/vpnprofile
-
-      # Use the AzureVPN profile file
-      PROFILE_FILE="/tmp/vpnprofile/AzureVPN/azurevpnconfig.xml"
-
-      if [ ! -f "$PROFILE_FILE" ]; then
-        # Fallback: search for any azurevpnconfig file
-        PROFILE_FILE=$(find /tmp/vpnprofile -iname "azurevpnconfig*" -type f | head -1)
-      fi
-
-      if [ -z "$PROFILE_FILE" ]; then
-        echo "ERROR: No azurevpnconfig file found in profile package"
-        exit 1
-      fi
-
-      # Inject DNS resolver IP into the profile
-      DNS_IP="${module.dns_resolver.inbound_endpoint_ip}"
-      if grep -q "<dns>" "$PROFILE_FILE" || grep -q "<DNS>" "$PROFILE_FILE"; then
-        # Replace existing DNS section
-        sed -i "s|<dns>.*</dns>|<dns><dnsservers><dnsserver>$DNS_IP</dnsserver></dnsservers></dns>|g" "$PROFILE_FILE"
-      else
-        # Add DNS before closing tag
-        sed -i "s|</AzVpnProfile>|<dns><dnsservers><dnsserver>$DNS_IP</dnsserver></dnsservers></dns>\n</AzVpnProfile>|" "$PROFILE_FILE"
-      fi
-
-      # Upload to storage container
-      az storage blob upload \
-        --account-name "${var.backend_storage_account_name}" \
-        --container-name "vpn-profiles" \
-        --name "azurevpnconfig.xml" \
-        --file "$PROFILE_FILE" \
-        --overwrite \
-        --auth-mode login
-
-      # Cleanup
-      rm -rf /tmp/vpnprofile /tmp/vpnprofile.zip
-    EOT
-  }
-
-  depends_on = [azurerm_storage_container.vpn_profiles]
+# Generate VPN client profile with DNS resolver IP
+# Format matches Azure's native azurevpnconfig.xml schema
+locals {
+  vpn_profile_xml = <<-XML
+<?xml version="1.0"?>
+<AzVpnProfile xmlns:i="http://www.w3.org/2001/XMLSchema-instance" xmlns="http://schemas.datacontract.org/2004/07/">
+  <aad>
+    <audience>c632b3df-fb67-4d84-bdcf-b95ad541b5c8</audience>
+    <issuer>https://sts.windows.net/${data.azurerm_client_config.current.tenant_id}/</issuer>
+    <tenant>https://login.microsoftonline.com/${data.azurerm_client_config.current.tenant_id}/</tenant>
+  </aad>
+  <clientconfig i:nil="true" />
+  <dns>
+    <dnsservers>
+      <dnsserver>${module.dns_resolver.inbound_endpoint_ip}</dnsserver>
+    </dnsservers>
+  </dns>
+  <serverlist>
+    <ServerEntry>
+      <fqdn>${module.vpn_gateway.public_ip_address}</fqdn>
+    </ServerEntry>
+  </serverlist>
+  <servervalidation>
+    <cert>
+      <hash>cb3ccbb76031e5e0138f8dd631a97af550b14c44</hash>
+      <issuer>CN=DigiCert Global Root G2, OU=www.digicert.com, O=DigiCert Inc, C=US</issuer>
+    </cert>
+  </servervalidation>
+  <version>1</version>
+</AzVpnProfile>
+  XML
 }
 
 # Upload VPN profile to storage account
 resource "azurerm_storage_container" "vpn_profiles" {
   name                 = "vpn-profiles"
   storage_account_id   = data.azurerm_storage_account.backend.id
+}
+
+resource "azurerm_storage_blob" "vpn_profile" {
+  name                   = "azurevpnconfig.xml"
+  storage_account_name   = data.azurerm_storage_account.backend.name
+  storage_container_name = azurerm_storage_container.vpn_profiles.name
+  type                   = "Block"
+  source_content         = local.vpn_profile_xml
+  content_type           = "application/xml"
 }
 
 module "aks" {
