@@ -21,7 +21,7 @@ resource "azurerm_virtual_network_gateway" "this" {
   resource_group_name = var.resource_group_name
   type                = "Vpn"
   vpn_type            = "RouteBased"
-  sku                 = "VpnGw1"
+  sku                 = "VpnGw1AZ"
   active_active       = false
   bgp_enabled         = false
 
