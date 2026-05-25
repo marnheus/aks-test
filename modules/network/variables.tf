@@ -41,10 +41,14 @@ variable "existing_vnet" {
 }
 
 variable "subnets" {
-  description = "Map of subnet definitions keyed by logical subnet name. Use name_override to change the Azure subnet name; bastion must resolve to AzureBastionSubnet."
+  description = "Map of subnet definitions keyed by logical subnet name. Use name_override to change the Azure subnet name."
   type = map(object({
     address_prefix = string
     name_override  = optional(string)
+    delegations = optional(list(object({
+      name         = string
+      service_name = string
+    })), [])
   }))
 
   validation {

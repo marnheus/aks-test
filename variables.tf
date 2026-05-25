@@ -34,6 +34,11 @@ variable "backend_vnet_name" {
   description = "Name of the VNet created by the Bicep backend."
 }
 
+variable "backend_storage_account_name" {
+  type        = string
+  description = "Name of the backend storage account (Terraform state)."
+}
+
 variable "kubernetes_version" {
   type        = string
   description = "Kubernetes version for AKS cluster."

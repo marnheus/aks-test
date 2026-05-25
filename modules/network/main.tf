@@ -20,7 +20,7 @@ locals {
 
   subnets_with_nsgs = {
     for subnet_key, subnet_name in local.subnet_names : subnet_key => subnet_name
-    if subnet_name != "AzureBastionSubnet"
+    if subnet_name != "AzureBastionSubnet" && subnet_name != "GatewaySubnet"
   }
 }
 
@@ -41,6 +41,16 @@ resource "azurerm_subnet" "subnet" {
   resource_group_name  = var.resource_group_name
   virtual_network_name = var.vnet_name
   address_prefixes     = [each.value.address_prefix]
+
+  dynamic "delegation" {
+    for_each = each.value.delegations != null ? each.value.delegations : []
+    content {
+      name = delegation.value.name
+      service_delegation {
+        name = delegation.value.service_name
+      }
+    }
+  }
 }
 
 resource "azurerm_subnet_network_security_group_association" "subnet" {
