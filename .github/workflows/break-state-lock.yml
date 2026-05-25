@@ -1,0 +1,35 @@
+name: Break Terraform State Lock
+
+on:
+  workflow_dispatch:
+
+permissions:
+  id-token: write
+  contents: read
+
+env:
+  ARM_CLIENT_ID: ${{ secrets.ARM_CLIENT_ID }}
+  ARM_SUBSCRIPTION_ID: ${{ secrets.ARM_SUBSCRIPTION_ID }}
+  ARM_TENANT_ID: ${{ secrets.ARM_TENANT_ID }}
+
+jobs:
+  break-lock:
+    name: Break State Lock
+    runs-on: [self-hosted, linux, azure]
+    environment: dev
+    steps:
+      - name: Azure login
+        uses: azure/login@v2
+        with:
+          client-id: ${{ env.ARM_CLIENT_ID }}
+          tenant-id: ${{ env.ARM_TENANT_ID }}
+          subscription-id: ${{ env.ARM_SUBSCRIPTION_ID }}
+
+      - name: Break blob lease
+        run: |
+          az storage blob lease break \
+            --blob-name "${{ vars.TFSTATE_KEY }}" \
+            --container-name "${{ vars.TFSTATE_CONTAINER }}" \
+            --account-name "${{ vars.TFSTATE_STORAGE_ACCOUNT }}" \
+            --auth-mode login
+          echo "✅ State lock broken successfully"
