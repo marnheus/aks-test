@@ -39,17 +39,20 @@ module "network" {
   tags = var.tags
 }
 
-module "nat_gateway" {
-  source = "./modules/nat-gateway"
+// NAT Gateway is created by the Bicep backend; associate it with Terraform-managed subnets
+data "azurerm_nat_gateway" "backend" {
+  name                = "natgw-aksbackend"
+  resource_group_name = var.backend_resource_group
+}
 
-  resource_group_name = azurerm_resource_group.main.name
-  location            = azurerm_resource_group.main.location
-  nat_gateway_name    = "${local.name_prefix}-nat-${local.resource_suffix}"
-  subnet_ids = {
-    aks     = module.network.subnet_ids["aks"]
-    jumpbox = module.network.subnet_ids["jumpbox"]
-  }
-  tags = var.tags
+resource "azurerm_subnet_nat_gateway_association" "aks" {
+  subnet_id      = module.network.subnet_ids["aks"]
+  nat_gateway_id = data.azurerm_nat_gateway.backend.id
+}
+
+resource "azurerm_subnet_nat_gateway_association" "jumpbox" {
+  subnet_id      = module.network.subnet_ids["jumpbox"]
+  nat_gateway_id = data.azurerm_nat_gateway.backend.id
 }
 
 module "monitoring" {
@@ -156,5 +159,5 @@ module "aks" {
   acr_id                     = module.acr.registry_id
   tags                       = var.tags
 
-  depends_on = [module.nat_gateway]
+  depends_on = [azurerm_subnet_nat_gateway_association.aks]
 }

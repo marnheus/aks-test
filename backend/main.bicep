@@ -40,7 +40,7 @@ param runnerAdminPassword string = newGuid()
 // ─── Variables ────────────────────────────────────────────────────────────────
 
 var vnetName = 'vnet-${baseName}'
-var natGatewayName = 'natgw-${baseName}-runner'
+var natGatewayName = 'natgw-${baseName}'
 var natGatewayPipName = 'pip-${natGatewayName}'
 var runnerVmName = 'vm-${baseName}-runner'
 var runnerNicName = '${runnerVmName}-nic'
@@ -342,3 +342,5 @@ output stateContainerName string = stateContainerName
 output runnerVmName string = runnerVm.name
 output runnerSubnetId string = vnet.properties.subnets[0].id
 output peSubnetId string = vnet.properties.subnets[1].id
+output natGatewayId string = natGateway.id
+output natGatewayName string = natGateway.name
