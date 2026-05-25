@@ -171,7 +171,7 @@ resource "terraform_data" "vpn_profile" {
       PROFILE_URL=$(az network vnet-gateway vpn-client generate \
         --resource-group "${var.backend_resource_group}" \
         --name "${module.vpn_gateway.gateway_name}" \
-        --authentication-method EAPMSCHAPv2 \
+        --authentication-method EAPTLS \
         -o tsv)
 
       # Download and extract the profile
