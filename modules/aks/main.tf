@@ -96,10 +96,20 @@ module "aks" {
     load_balancer_sku   = "standard"
     network_plugin      = "azure"
     network_plugin_mode = "overlay"
-    network_policy      = "none"
+    network_dataplane   = "cilium"
+    network_policy      = "cilium"
     pod_cidr            = "192.168.0.0/16"
     service_cidr        = "172.16.0.0/16"
     dns_service_ip      = "172.16.0.10"
+    advanced_networking = {
+      enabled = true
+      observability = {
+        enabled = true
+      }
+      security = {
+        enabled = true
+      }
+    }
   }
 
   oidc_issuer_profile = {
