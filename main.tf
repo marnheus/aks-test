@@ -45,6 +45,11 @@ data "azurerm_nat_gateway" "backend" {
   resource_group_name = var.backend_resource_group
 }
 
+import {
+  to = azurerm_subnet_nat_gateway_association.aks
+  id = "/subscriptions/bff83385-09ed-4da6-a3e9-d299d9763f11/resourceGroups/rg-aks-backend-westeurope/providers/Microsoft.Network/virtualNetworks/vnet-aksbackend/subnets/aks"
+}
+
 resource "azurerm_subnet_nat_gateway_association" "aks" {
   subnet_id      = module.network.subnet_ids["aks"]
   nat_gateway_id = data.azurerm_nat_gateway.backend.id
