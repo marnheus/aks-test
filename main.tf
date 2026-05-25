@@ -18,6 +18,12 @@ data "azurerm_private_dns_zone" "blob" {
   resource_group_name = var.backend_resource_group
 }
 
+// Backend storage account (Terraform state + VPN profiles)
+data "azurerm_storage_account" "backend" {
+  name                = var.backend_storage_account_name
+  resource_group_name = var.backend_resource_group
+}
+
 module "network" {
   source = "./modules/network"
 
@@ -31,12 +37,23 @@ module "network" {
       {
         address_prefix = cidr
       },
-      subnet_name == "bastion" ? {
-        name_override = "AzureBastionSubnet"
+      subnet_name == "dns_resolver" ? {
+        delegations = [{
+          name         = "dns-resolver"
+          service_name = "Microsoft.Network/dnsResolvers"
+        }]
       } : {}
     )
   }
   tags = var.tags
+}
+
+# GatewaySubnet (must be named exactly "GatewaySubnet", cannot have NSG)
+resource "azurerm_subnet" "gateway" {
+  name                 = "GatewaySubnet"
+  resource_group_name  = var.backend_resource_group
+  virtual_network_name = var.backend_vnet_name
+  address_prefixes     = [local.gateway_subnet_prefix]
 }
 
 // NAT Gateway is created by the Bicep backend; associate it with Terraform-managed subnets
@@ -116,6 +133,75 @@ module "acr" {
 }
 
 // GitHub runner is deployed by the Bicep backend (see backend/main.bicep)
+
+module "vpn_gateway" {
+  source = "./modules/vpn-gateway"
+
+  resource_group_name     = var.backend_resource_group
+  location                = azurerm_resource_group.main.location
+  gateway_name            = "${local.name_prefix}-vpngw-${local.resource_suffix}"
+  gateway_subnet_id       = azurerm_subnet.gateway.id
+  vpn_client_address_pool = "172.16.0.0/24"
+  tenant_id               = data.azurerm_client_config.current.tenant_id
+  tags                    = var.tags
+}
+
+module "dns_resolver" {
+  source = "./modules/dns-resolver"
+
+  resource_group_name = var.backend_resource_group
+  location            = azurerm_resource_group.main.location
+  resolver_name       = "${local.name_prefix}-dnsresolver-${local.resource_suffix}"
+  virtual_network_id  = data.azurerm_virtual_network.backend.id
+  inbound_subnet_id   = module.network.subnet_ids["dns_resolver"]
+  tags                = var.tags
+}
+
+# Generate VPN client profile with DNS resolver IP
+locals {
+  vpn_profile_xml = <<-XML
+    <AzVpnProfile xmlns:i="http://www.w3.org/2001/XMLSchema-instance" xmlns="http://schemas.datacontract.org/2012/09/">
+      <clientauth>
+        <aad>
+          <tenant>https://login.microsoftonline.com/${data.azurerm_client_config.current.tenant_id}/</tenant>
+          <audience>c632b3df-fb67-4d84-bdcf-b95ad541b5c8</audience>
+          <issuer>https://sts.windows.net/${data.azurerm_client_config.current.tenant_id}/</issuer>
+        </aad>
+      </clientauth>
+      <clientconfig i:nil="true" />
+      <dns>
+        <servers>
+          <string>${module.dns_resolver.inbound_endpoint_ip}</string>
+        </servers>
+      </dns>
+      <serverlist>
+        <ServerEntry>
+          <fqdn>${module.vpn_gateway.gateway_name}.vpn.azure.com</fqdn>
+        </ServerEntry>
+      </serverlist>
+      <servervalidation>
+        <disableStrictValidation>false</disableStrictValidation>
+        <issuer i:nil="true" />
+      </servervalidation>
+      <version>1</version>
+    </AzVpnProfile>
+  XML
+}
+
+# Upload VPN profile to storage account
+resource "azurerm_storage_container" "vpn_profiles" {
+  name                 = "vpn-profiles"
+  storage_account_id   = data.azurerm_storage_account.backend.id
+}
+
+resource "azurerm_storage_blob" "vpn_profile" {
+  name                   = "azurevpnconfig.xml"
+  storage_account_name   = data.azurerm_storage_account.backend.name
+  storage_container_name = azurerm_storage_container.vpn_profiles.name
+  type                   = "Block"
+  source_content         = local.vpn_profile_xml
+  content_type           = "application/xml"
+}
 
 module "aks" {
   source = "./modules/aks"
