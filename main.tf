@@ -168,7 +168,7 @@ resource "terraform_data" "vpn_profile_generator" {
 
   provisioner "local-exec" {
     command = <<-EOT
-      set -e
+      set -ex
       # Generate VPN client package URL from gateway
       PROFILE_URL=$(az network vnet-gateway vpn-client generate \
         --resource-group "${var.backend_resource_group}" \
@@ -178,23 +178,22 @@ resource "terraform_data" "vpn_profile_generator" {
 
       # Download and extract the profile
       curl -sL "$PROFILE_URL" -o /tmp/vpnprofile.zip
+      rm -rf /tmp/vpnprofile
       unzip -o /tmp/vpnprofile.zip -d /tmp/vpnprofile
 
       # Use the AzureVPN profile file
       PROFILE_FILE="/tmp/vpnprofile/AzureVPN/azurevpnconfig.xml"
-
-      if [ ! -f "$PROFILE_FILE" ]; then
-        echo "ERROR: No azurevpnconfig.xml found in profile package"
-        ls -la /tmp/vpnprofile/ /tmp/vpnprofile/AzureVPN/ 2>/dev/null || true
-        exit 1
-      fi
+      ls -la "$PROFILE_FILE"
+      cat "$PROFILE_FILE"
 
       # Inject DNS resolver IP into the profile by replacing nil clientconfig
       DNS_IP="${module.dns_resolver.inbound_endpoint_ip}"
-      sed -i 's|<clientconfig[^/]*/>|<clientconfig><dnsservers><dnsserver>'"$DNS_IP"'</dnsserver></dnsservers></clientconfig>|' "$PROFILE_FILE"
+      sed -i "s|<clientconfig[^/]*/>|<clientconfig><dnsservers><dnsserver>$DNS_IP</dnsserver></dnsservers></clientconfig>|" "$PROFILE_FILE"
 
-      # Upload to storage container using az rest (data plane via ARM proxy)
-      BLOB_URL="https://${var.backend_storage_account_name}.blob.core.windows.net/vpn-profiles/azurevpnconfig.xml"
+      echo "=== Modified profile ==="
+      cat "$PROFILE_FILE"
+
+      # Upload to storage container
       az storage blob upload \
         --account-name "${var.backend_storage_account_name}" \
         --container-name "vpn-profiles" \
@@ -202,7 +201,7 @@ resource "terraform_data" "vpn_profile_generator" {
         --file "$PROFILE_FILE" \
         --overwrite \
         --auth-mode login || {
-          # Fallback: try with account key via ARM
+          echo "Login auth failed, trying with account key..."
           ACCOUNT_KEY=$(az storage account keys list \
             --resource-group "${var.backend_resource_group}" \
             --account-name "${var.backend_storage_account_name}" \
