@@ -189,9 +189,9 @@ resource "terraform_data" "vpn_profile_generator" {
         exit 1
       fi
 
-      # Inject DNS resolver IP into the profile by replacing <clientconfig i:nil="true" />
+      # Inject DNS resolver IP into the profile by replacing nil clientconfig
       DNS_IP="${module.dns_resolver.inbound_endpoint_ip}"
-      sed -i 's|<clientconfig i:nil="true" />|<clientconfig><dnsservers><dnsserver>'"$DNS_IP"'</dnsserver></dnsservers></clientconfig>|' "$PROFILE_FILE"
+      sed -i 's|<clientconfig[^/]*/>|<clientconfig><dnsservers><dnsserver>'"$DNS_IP"'</dnsserver></dnsservers></clientconfig>|' "$PROFILE_FILE"
 
       # Upload to storage container using az rest (data plane via ARM proxy)
       BLOB_URL="https://${var.backend_storage_account_name}.blob.core.windows.net/vpn-profiles/azurevpnconfig.xml"
