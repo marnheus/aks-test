@@ -46,7 +46,8 @@ module "nat_gateway" {
   location            = azurerm_resource_group.main.location
   nat_gateway_name    = "${local.name_prefix}-nat-${local.resource_suffix}"
   subnet_ids = {
-    aks = module.network.subnet_ids["aks"]
+    aks     = module.network.subnet_ids["aks"]
+    jumpbox = module.network.subnet_ids["jumpbox"]
   }
   tags = var.tags
 }
