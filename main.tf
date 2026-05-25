@@ -168,7 +168,7 @@ resource "terraform_data" "vpn_profile_generator" {
 
   provisioner "local-exec" {
     command = <<-EOT
-      set -ex
+      set -e
       # Generate VPN client package URL from gateway
       PROFILE_URL=$(az network vnet-gateway vpn-client generate \
         --resource-group "${var.backend_resource_group}" \
@@ -179,19 +179,19 @@ resource "terraform_data" "vpn_profile_generator" {
       # Download and extract the profile
       curl -sL "$PROFILE_URL" -o /tmp/vpnprofile.zip
       rm -rf /tmp/vpnprofile
-      unzip -o /tmp/vpnprofile.zip -d /tmp/vpnprofile
+      unzip -o /tmp/vpnprofile.zip -d /tmp/vpnprofile || true
 
       # Use the AzureVPN profile file
       PROFILE_FILE="/tmp/vpnprofile/AzureVPN/azurevpnconfig.xml"
-      ls -la "$PROFILE_FILE"
-      cat "$PROFILE_FILE"
+
+      if [ ! -f "$PROFILE_FILE" ]; then
+        echo "ERROR: No azurevpnconfig.xml found"
+        exit 1
+      fi
 
       # Inject DNS resolver IP into the profile by replacing nil clientconfig
       DNS_IP="${module.dns_resolver.inbound_endpoint_ip}"
       sed -i "s|<clientconfig[^/]*/>|<clientconfig><dnsservers><dnsserver>$DNS_IP</dnsserver></dnsservers></clientconfig>|" "$PROFILE_FILE"
-
-      echo "=== Modified profile ==="
-      cat "$PROFILE_FILE"
 
       # Upload to storage container
       az storage blob upload \
@@ -200,20 +200,7 @@ resource "terraform_data" "vpn_profile_generator" {
         --name "azurevpnconfig.xml" \
         --file "$PROFILE_FILE" \
         --overwrite \
-        --auth-mode login || {
-          echo "Login auth failed, trying with account key..."
-          ACCOUNT_KEY=$(az storage account keys list \
-            --resource-group "${var.backend_resource_group}" \
-            --account-name "${var.backend_storage_account_name}" \
-            --query "[0].value" -o tsv)
-          az storage blob upload \
-            --account-name "${var.backend_storage_account_name}" \
-            --container-name "vpn-profiles" \
-            --name "azurevpnconfig.xml" \
-            --file "$PROFILE_FILE" \
-            --overwrite \
-            --account-key "$ACCOUNT_KEY"
-        }
+        --auth-mode login
 
       # Cleanup
       rm -rf /tmp/vpnprofile /tmp/vpnprofile.zip
