@@ -160,31 +160,24 @@ module "dns_resolver" {
 # Generate VPN client profile with DNS resolver IP
 locals {
   vpn_profile_xml = <<-XML
-    <AzVpnProfile xmlns:i="http://www.w3.org/2001/XMLSchema-instance" xmlns="http://schemas.datacontract.org/2012/09/">
-      <clientauth>
-        <aad>
-          <tenant>https://login.microsoftonline.com/${data.azurerm_client_config.current.tenant_id}/</tenant>
-          <audience>c632b3df-fb67-4d84-bdcf-b95ad541b5c8</audience>
-          <issuer>https://sts.windows.net/${data.azurerm_client_config.current.tenant_id}/</issuer>
-        </aad>
-      </clientauth>
-      <clientconfig i:nil="true" />
-      <dns>
-        <servers>
-          <string>${module.dns_resolver.inbound_endpoint_ip}</string>
-        </servers>
-      </dns>
-      <serverlist>
-        <ServerEntry>
-          <fqdn>${module.vpn_gateway.gateway_name}.vpn.azure.com</fqdn>
-        </ServerEntry>
-      </serverlist>
-      <servervalidation>
-        <disableStrictValidation>false</disableStrictValidation>
-        <issuer i:nil="true" />
-      </servervalidation>
-      <version>1</version>
-    </AzVpnProfile>
+<?xml version="1.0"?>
+<AzVpnProfile xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:xsd="http://www.w3.org/2001/XMLSchema">
+  <Name>aks-demo-vpn</Name>
+  <ServerAddress>${module.vpn_gateway.public_ip_address}</ServerAddress>
+  <ServerRootCertificate>
+    <Name>DigiCert Global Root G2</Name>
+    <Fingerprint>cb3ccbb76031e5e0138f8dd631a97af550b14c44</Fingerprint>
+  </ServerRootCertificate>
+  <ClientAuthentication>
+    <Type>AAD</Type>
+    <AADTenant>https://login.microsoftonline.com/${data.azurerm_client_config.current.tenant_id}/</AADTenant>
+    <AADAudience>c632b3df-fb67-4d84-bdcf-b95ad541b5c8</AADAudience>
+    <AADIssuer>https://sts.windows.net/${data.azurerm_client_config.current.tenant_id}/</AADIssuer>
+  </ClientAuthentication>
+  <DNS>
+    <Server>${module.dns_resolver.inbound_endpoint_ip}</Server>
+  </DNS>
+</AzVpnProfile>
   XML
 }
 
