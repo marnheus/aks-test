@@ -93,11 +93,13 @@ module "aks" {
   }
 
   network_profile = {
-    load_balancer_sku = "standard"
-    network_plugin    = "azure"
-    network_policy    = "none"
-    service_cidr      = "172.16.0.0/16"
-    dns_service_ip    = "172.16.0.10"
+    load_balancer_sku   = "standard"
+    network_plugin      = "azure"
+    network_plugin_mode = "overlay"
+    network_policy      = "none"
+    pod_cidr            = "192.168.0.0/16"
+    service_cidr        = "172.16.0.0/16"
+    dns_service_ip      = "172.16.0.10"
   }
 
   oidc_issuer_profile = {
