@@ -178,8 +178,13 @@ resource "terraform_data" "vpn_profile" {
       curl -sL "$PROFILE_URL" -o /tmp/vpnprofile.zip
       unzip -o /tmp/vpnprofile.zip -d /tmp/vpnprofile
 
-      # Find the azurevpnconfig file
-      PROFILE_FILE=$(find /tmp/vpnprofile -name "azurevpnconfig*" | head -1)
+      # Use the AzureVPN profile file
+      PROFILE_FILE="/tmp/vpnprofile/AzureVPN/azurevpnconfig.xml"
+
+      if [ ! -f "$PROFILE_FILE" ]; then
+        # Fallback: search for any azurevpnconfig file
+        PROFILE_FILE=$(find /tmp/vpnprofile -iname "azurevpnconfig*" -type f | head -1)
+      fi
 
       if [ -z "$PROFILE_FILE" ]; then
         echo "ERROR: No azurevpnconfig file found in profile package"
