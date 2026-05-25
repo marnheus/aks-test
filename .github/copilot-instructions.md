@@ -6,10 +6,10 @@ Terraform template for a private AKS cluster deployed inside a VNet using [Azure
 
 ### Key Components
 
-- Private AKS cluster (no public API endpoint)
-- Private DNS zone for internal resolution
-- Azure Bastion for secure access
-- Jumpbox VM for cluster administration
+- Private AKS cluster (Azure CNI Overlay + Cilium dataplane + ACNS)
+- Point-to-Site VPN Gateway with Entra ID authentication
+- Private DNS Resolver for VPN client DNS resolution
+- Private DNS zones for internal resolution
 - Private GitHub Actions self-hosted runner
 - Azure Container Registry (ACR) with VNet integration
 - Azure Key Vault for secrets/certificate management
@@ -31,7 +31,8 @@ terraform destroy
 - All resources deploy inside a single private VNet with dedicated subnets per workload
 - Prefer AVM modules from the Terraform registry (`Azure/avm-res-*`) over hand-written resource blocks
 - Use private endpoints for any service that supports them (ACR, AKS API, etc.)
-- No public IPs except on the Azure Bastion subnet (required by design)
+- No public IPs except on the VPN Gateway (required by design)
+- Local developer access via P2S VPN + Private DNS Resolver (no bastion/jumpbox)
 
 ## Terraform Conventions
 

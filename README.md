@@ -23,10 +23,11 @@ Creates the foundational networking and CI/CD runner:
 
 Deploys into the existing VNet created by the backend:
 
-- **AKS Cluster** — Private cluster with no public API endpoint
-- **Private DNS Zone** — For AKS internal name resolution
-- **Azure Bastion** — Secure remote access without exposing VMs to the internet
-- **Jumpbox VMs** — Linux + Windows for administrative access
+- **AKS Cluster** — Private cluster with no public API endpoint, Azure CNI Overlay, Cilium dataplane
+- **ACNS (Advanced Container Networking Services)** — Observability and security features powered by Cilium
+- **Private DNS Zone** — For AKS internal name resolution (`privatelink.westeurope.azmk8s.io`)
+- **VPN Gateway** — Point-to-Site VPN with Entra ID authentication for local developer access
+- **Private DNS Resolver** — Inbound endpoint enabling VPN clients to resolve private DNS zones
 - **Azure Container Registry (ACR)** — Private image registry with VNet integration
 - **Azure Key Vault** — Secrets and certificate management
 - **Log Analytics Workspace** — Observability and container insights
@@ -39,7 +40,7 @@ Deploys into the existing VNet created by the backend:
 1. Deploy Backend (Bicep)     →  VNet, Runner, State Storage
    (runs on: ubuntu-latest)
 
-2. Deploy Terraform Infra     →  AKS, ACR, Bastion, etc.
+2. Deploy Terraform Infra     →  AKS, ACR, VPN, DNS Resolver, etc.
    (runs on: self-hosted)        Uses VNet from step 1
 ```
 
@@ -95,3 +96,52 @@ terraform apply tfplan
 ## Purpose
 
 This repo serves as a reusable starting point for deploying production-like private AKS environments for demos, workshops, and proof-of-concept work.
+
+## Networking
+
+| Subnet | CIDR | Purpose |
+|--------|------|---------|
+| AKS | 10.0.0.0/22 | AKS node pool |
+| Runner | 10.0.5.0/24 | GitHub Actions self-hosted runner |
+| Private Endpoints | 10.0.4.64/26 | Private endpoints (ACR, Key Vault, Storage) |
+| GatewaySubnet | 10.0.4.0/27 | VPN Gateway (required name by Azure) |
+| DNS Resolver | 10.0.6.0/28 | Private DNS Resolver inbound endpoint |
+
+- **Pod CIDR (Overlay)**: 192.168.0.0/16
+- **Service CIDR**: 172.16.0.0/16
+- **VPN Client Address Pool**: 172.16.201.0/24
+
+## Local Access via VPN
+
+The infrastructure includes a Point-to-Site VPN Gateway with Entra ID authentication, allowing developers to access private resources from their local machines.
+
+### Setup
+
+1. Download the VPN profile from the `vpn-profiles` container in the state storage account (`staksdemostate2026`)
+2. Import `azurevpnconfig.xml` into the [Azure VPN Client](https://aka.ms/azvpnclientdownload)
+3. Connect using your Entra ID credentials
+
+### DNS Resolution
+
+The Private DNS Resolver (inbound IP: configured in the VPN profile) enables VPN clients to resolve private DNS zones:
+- `privatelink.westeurope.azmk8s.io` (AKS API server)
+- `privatelink.azurecr.io` (Container Registry)
+- `privatelink.vaultcore.azure.net` (Key Vault)
+- `privatelink.blob.core.windows.net` (Storage)
+
+### Connecting to the Cluster
+
+```bash
+az aks get-credentials --resource-group rg-aks-demo-westeurope --name <cluster-name>
+kubectl get nodes
+```
+
+## AKS Cluster Configuration
+
+- **Network Plugin**: Azure CNI with Overlay mode
+- **Network Dataplane**: Cilium
+- **Network Policy**: Cilium
+- **ACNS**: Enabled (observability + security)
+- **SKU**: Standard with system + user node pools
+- **Authentication**: Workload Identity + OIDC issuer enabled
+- **Monitoring**: Container Insights via Log Analytics
