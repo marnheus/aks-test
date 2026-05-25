@@ -40,7 +40,7 @@ param runnerAdminPassword string = newGuid()
 // ─── Variables ────────────────────────────────────────────────────────────────
 
 var vnetName = 'vnet-${baseName}'
-var natGatewayName = 'natgw-${baseName}'
+var natGatewayName = 'natgw-${baseName}-runner'
 var natGatewayPipName = 'pip-${natGatewayName}'
 var runnerVmName = 'vm-${baseName}-runner'
 var runnerNicName = '${runnerVmName}-nic'

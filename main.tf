@@ -41,7 +41,7 @@ module "network" {
 
 // NAT Gateway is created by the Bicep backend; associate it with Terraform-managed subnets
 data "azurerm_nat_gateway" "backend" {
-  name                = "natgw-aksbackend"
+  name                = "natgw-aksbackend-runner"
   resource_group_name = var.backend_resource_group
 }
 
