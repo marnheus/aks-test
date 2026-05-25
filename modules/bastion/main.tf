@@ -13,7 +13,6 @@ module "bastion" {
     subnet_id              = var.subnet_id
     create_public_ip       = true
     public_ip_address_name = "${var.bastion_name}-pip"
-    public_ip_tags         = var.tags
   }
 
   tags = var.tags
